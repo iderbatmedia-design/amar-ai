@@ -36,16 +36,30 @@ export async function POST(request: NextRequest) {
       .eq('project_id', project_id)
       .single()
 
-    // 4. Research Engine ажиллуулах
+    // 4. Admin-ий сургасан research мэдлэг авах
+    const { data: baseKnowledge } = await supabase
+      .from('ai_base_knowledge')
+      .select('content')
+      .eq('is_active', true)
+      .in('category', ['research', 'general'])
+      .order('priority', { ascending: false })
+      .limit(10)
+
+    const baseKnowledgeText = baseKnowledge?.map(k => k.content).join('\n\n') || ''
+
+    console.log('Base knowledge for research:', baseKnowledgeText) // Debug log
+
+    // 5. Research Engine ажиллуулах
     const researchResult = await runResearchEngine({
       name: project.name,
       industry: project.industry || '',
       description: project.description || '',
       products: products || [],
-      brandProfile: brandProfile || undefined
+      brandProfile: brandProfile || undefined,
+      baseKnowledge: baseKnowledgeText
     })
 
-    // 5. Research data хадгалах (update existing row)
+    // 6. Research data хадгалах (update existing row)
     const { error: updateError } = await supabase
       .from('research_data')
       .update({

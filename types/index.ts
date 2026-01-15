@@ -43,6 +43,10 @@ export interface Product {
   price: number | null
   features: string[] | null
   stock: number
+  is_active: boolean
+  category: string | null
+  sku: string | null
+  images: string[] | null
   created_at: string
 }
 

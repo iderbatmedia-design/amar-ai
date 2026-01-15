@@ -183,10 +183,13 @@ export default function ProjectDashboard() {
               </div>
             </Card>
 
-            {/* Settings */}
+            {/* AI Settings */}
             <Card>
-              <h3 className="font-semibold mb-4">Тохиргоо</h3>
+              <h3 className="font-semibold mb-4">AI тохиргоо</h3>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <Button onClick={() => router.push(`/dashboard/${projectId}/research`)} variant="outline" className="justify-center">
+                  🔬 AI Судалгаа
+                </Button>
                 <Button onClick={() => router.push(`/dashboard/${projectId}/brand`)} variant="outline" className="justify-center">
                   🎨 Брэнд профайл
                 </Button>
@@ -196,8 +199,18 @@ export default function ProjectDashboard() {
                 <Button onClick={() => router.push(`/dashboard/${projectId}/connect`)} variant="outline" className="justify-center">
                   🔗 FB/IG холбох
                 </Button>
+              </div>
+            </Card>
+
+            {/* Бүтээгдэхүүний удирдлага */}
+            <Card>
+              <h3 className="font-semibold mb-4">Бүтээгдэхүүн</h3>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <Button onClick={() => router.push(`/dashboard/${projectId}/products`)} variant="outline" className="justify-center">
+                  📦 Бүх бүтээгдэхүүн
+                </Button>
                 <Button onClick={() => router.push(`/dashboard/${projectId}/products/new`)} variant="outline" className="justify-center">
-                  + Бүтээгдэхүүн
+                  + Шинэ нэмэх
                 </Button>
               </div>
             </Card>
@@ -249,14 +262,34 @@ export default function ProjectDashboard() {
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {products.map((product) => (
-                  <Card key={product.id} className="cursor-pointer hover:shadow-md">
-                    <h4 className="font-medium">{product.name}</h4>
-                    <p className="text-sm text-gray-500 mt-1">{product.description}</p>
-                    {product.price && (
-                      <p className="text-lg font-bold text-blue-600 mt-2">
-                        {product.price.toLocaleString()}₮
-                      </p>
-                    )}
+                  <Card
+                    key={product.id}
+                    className="cursor-pointer hover:shadow-md transition-shadow"
+                    onClick={() => router.push(`/dashboard/${projectId}/products/${product.id}`)}
+                  >
+                    <div className="flex items-start justify-between mb-2">
+                      <h4 className="font-medium">{product.name}</h4>
+                      <span className={`px-2 py-0.5 text-xs rounded-full ${
+                        product.is_active
+                          ? 'bg-green-100 text-green-700'
+                          : 'bg-gray-100 text-gray-500'
+                      }`}>
+                        {product.is_active ? 'Идэвхтэй' : 'Идэвхгүй'}
+                      </span>
+                    </div>
+                    <p className="text-sm text-gray-500 line-clamp-2">{product.description}</p>
+                    <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-100">
+                      {product.price ? (
+                        <span className="font-bold text-blue-600">
+                          {product.price.toLocaleString()}₮
+                        </span>
+                      ) : (
+                        <span className="text-gray-400 text-sm">Үнэ оруулаагүй</span>
+                      )}
+                      <span className="text-xs text-gray-400">
+                        Засварлах →
+                      </span>
+                    </div>
                   </Card>
                 ))}
               </div>

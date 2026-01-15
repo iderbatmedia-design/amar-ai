@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@/app/lib/supabase'
-import { runSalesAgent, runClassifier } from '@/app/lib/openai'
+import { runSalesAgent } from '@/app/lib/openai'
 
 // Webhook verify token (та өөрийн нууц үг оруулна)
 const VERIFY_TOKEN = process.env.META_WEBHOOK_VERIFY_TOKEN || 'amarai_webhook_2024'
@@ -137,10 +137,17 @@ async function handleMessagingEvent(event: any, platform: string) {
       return
     }
 
-    // 5. AI Sales Agent ажиллуулах
+    // 5. Products авах (зургуудын хамт)
+    const { data: products } = await supabase
+      .from('products')
+      .select('id, name, images')
+      .eq('project_id', projectId)
+      .eq('is_active', true)
+
+    // 6. AI Sales Agent ажиллуулах
     const conversationHistory = conversation?.messages || []
 
-    const aiResponse = await runSalesAgent({
+    const aiResult = await runSalesAgent({
       researchData: JSON.parse(researchData.ai_instructions),
       conversationHistory,
       customerMessage: message,
@@ -148,10 +155,15 @@ async function handleMessagingEvent(event: any, platform: string) {
         name: customer.name,
         previous_purchases: customer.total_orders,
         lead_score: customer.lead_score
-      } : undefined
+      } : undefined,
+      products: products || []
     })
 
-    // 6. Харилцааг шинэчлэх
+    // AI хариултыг задлах
+    const aiResponse = typeof aiResult === 'string' ? aiResult : aiResult.message
+    const imagesToSend = typeof aiResult === 'string' ? [] : (aiResult.images_to_send || [])
+
+    // 7. Харилцааг шинэчлэх
     const newMessages = [
       ...conversationHistory,
       { role: 'user', content: message },
@@ -167,10 +179,15 @@ async function handleMessagingEvent(event: any, platform: string) {
       })
       .eq('id', conversation?.id)
 
-    // 7. Meta руу хариулт илгээх
+    // 8. Meta руу хариулт илгээх
     await sendMetaMessage(socialAccount.access_token, senderId, aiResponse, platform)
 
-    console.log('AI responded:', aiResponse)
+    // 9. Зургууд илгээх (хэрэв байвал)
+    for (const imageUrl of imagesToSend.slice(0, 5)) { // Max 5 зураг
+      await sendMetaImage(socialAccount.access_token, senderId, imageUrl, platform)
+    }
+
+    console.log('AI responded:', aiResponse, 'Images:', imagesToSend.length)
 
   } catch (error) {
     console.error('Error handling message:', error)
@@ -178,7 +195,7 @@ async function handleMessagingEvent(event: any, platform: string) {
 }
 
 // Comment боловсруулах
-async function handleFeedEvent(value: any, pageId: string) {
+async function handleFeedEvent(value: any, _pageId: string) {
   // Comment дээр хариулах логик
   if (value.item === 'comment' && value.verb === 'add') {
     console.log('New comment:', value.message)
@@ -187,10 +204,8 @@ async function handleFeedEvent(value: any, pageId: string) {
 }
 
 // Meta руу мессеж илгээх
-async function sendMetaMessage(accessToken: string, recipientId: string, message: string, platform: string) {
-  const url = platform === 'page'
-    ? 'https://graph.facebook.com/v18.0/me/messages'
-    : 'https://graph.facebook.com/v18.0/me/messages'
+async function sendMetaMessage(accessToken: string, recipientId: string, message: string, _platform: string) {
+  const url = 'https://graph.facebook.com/v18.0/me/messages'
 
   try {
     const response = await fetch(url, {
@@ -211,5 +226,39 @@ async function sendMetaMessage(accessToken: string, recipientId: string, message
     }
   } catch (error) {
     console.error('Error sending message:', error)
+  }
+}
+
+// Meta руу зураг илгээх
+async function sendMetaImage(accessToken: string, recipientId: string, imageUrl: string, _platform: string) {
+  const url = 'https://graph.facebook.com/v18.0/me/messages'
+
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        recipient: { id: recipientId },
+        message: {
+          attachment: {
+            type: 'image',
+            payload: {
+              url: imageUrl,
+              is_reusable: true
+            }
+          }
+        },
+        access_token: accessToken
+      })
+    })
+
+    if (!response.ok) {
+      const error = await response.json()
+      console.error('Meta Image API error:', error)
+    }
+  } catch (error) {
+    console.error('Error sending image:', error)
   }
 }

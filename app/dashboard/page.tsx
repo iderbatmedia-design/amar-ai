@@ -6,11 +6,17 @@ import { Button, Card } from '@/components/ui'
 import { getCurrentUser, signOut, supabase } from '@/app/lib/supabase'
 import type { Project } from '@/types'
 
+// Admin имэйлүүд
+const ADMIN_EMAILS = ['admin@amarai.mn', 'orgilb295@gmail.com']
+
 export default function DashboardPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(true)
   const [projects, setProjects] = useState<Project[]>([])
   const [userEmail, setUserEmail] = useState('')
+  const [isAdmin, setIsAdmin] = useState(false)
+  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
+  const [deleting, setDeleting] = useState(false)
 
   useEffect(() => {
     checkUser()
@@ -24,6 +30,7 @@ export default function DashboardPage() {
       return
     }
     setUserEmail(user.email || '')
+    setIsAdmin(ADMIN_EMAILS.includes(user.email || ''))
   }
 
   const loadProjects = async () => {
@@ -51,6 +58,47 @@ export default function DashboardPage() {
     router.push('/')
   }
 
+  const handleDeleteProject = async (projectId: string, e: React.MouseEvent) => {
+    e.stopPropagation() // Card дээр дарахад navigate хийхгүй
+
+    if (deleteConfirm !== projectId) {
+      setDeleteConfirm(projectId)
+      return
+    }
+
+    setDeleting(true)
+    try {
+      // Холбоотой бүх өгөгдлийг устгах
+      await supabase.from('products').delete().eq('project_id', projectId)
+      await supabase.from('research_data').delete().eq('project_id', projectId)
+      await supabase.from('brand_profiles').delete().eq('project_id', projectId)
+      await supabase.from('conversations').delete().eq('project_id', projectId)
+      await supabase.from('orders').delete().eq('project_id', projectId)
+
+      // Төслийг устгах
+      const { error } = await supabase
+        .from('projects')
+        .delete()
+        .eq('id', projectId)
+
+      if (error) throw error
+
+      // Жагсаалтаас хасах
+      setProjects(prev => prev.filter(p => p.id !== projectId))
+      setDeleteConfirm(null)
+    } catch (error) {
+      console.error('Error deleting project:', error)
+      alert('Төсөл устгахад алдаа гарлаа')
+    } finally {
+      setDeleting(false)
+    }
+  }
+
+  const cancelDelete = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    setDeleteConfirm(null)
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -67,6 +115,16 @@ export default function DashboardPage() {
           <div className="flex justify-between items-center h-16">
             <h1 className="text-xl font-bold text-blue-600">AmarAI</h1>
             <div className="flex items-center gap-4">
+              {isAdmin && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => router.push('/admin')}
+                  className="border-red-200 text-red-600 hover:bg-red-50"
+                >
+                  🛠️ Admin Panel
+                </Button>
+              )}
               <span className="text-sm text-gray-600">{userEmail}</span>
               <Button variant="ghost" size="sm" onClick={handleSignOut}>
                 Гарах
@@ -103,7 +161,7 @@ export default function DashboardPage() {
             {projects.map((project) => (
               <Card
                 key={project.id}
-                className="cursor-pointer hover:shadow-md transition-shadow"
+                className="cursor-pointer hover:shadow-md transition-shadow relative"
                 onClick={() => router.push(`/dashboard/${project.id}`)}
               >
                 <div className="flex items-start justify-between mb-4">
@@ -120,8 +178,37 @@ export default function DashboardPage() {
                   </span>
                 </div>
                 <p className="text-sm text-gray-600 line-clamp-2">{project.description}</p>
-                <div className="mt-4 pt-4 border-t border-gray-100 flex items-center text-sm text-gray-500">
+                <div className="mt-4 pt-4 border-t border-gray-100 flex items-center justify-between text-sm text-gray-500">
                   <span>AI: {project.ai_name}</span>
+
+                  {/* Устгах товч */}
+                  {deleteConfirm === project.id ? (
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={(e) => handleDeleteProject(project.id, e)}
+                        disabled={deleting}
+                        className="px-2 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50"
+                      >
+                        {deleting ? '...' : 'Устгах'}
+                      </button>
+                      <button
+                        onClick={cancelDelete}
+                        className="px-2 py-1 text-xs bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
+                      >
+                        Болих
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={(e) => handleDeleteProject(project.id, e)}
+                      className="p-1 text-gray-400 hover:text-red-600 transition-colors"
+                      title="Төсөл устгах"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                    </button>
+                  )}
                 </div>
               </Card>
             ))}

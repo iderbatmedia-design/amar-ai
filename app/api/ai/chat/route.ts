@@ -6,7 +6,7 @@ import { runSalesAgent } from '@/app/lib/openai'
 export async function POST(request: NextRequest) {
   try {
     const supabase = createServerClient()
-    const { project_id, conversation_id, message, customer_id } = await request.json()
+    const { project_id, conversation_id, message, customer_id, history } = await request.json()
 
     if (!project_id || !message) {
       return NextResponse.json({ error: 'project_id and message required' }, { status: 400 })
@@ -26,10 +26,14 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    // 2. Харилцааны түүх авах
+    // 2. Харилцааны түүх авах - history параметрээс эсвэл DB-ээс
     let conversationHistory: Array<{ role: 'user' | 'assistant', content: string }> = []
 
-    if (conversation_id) {
+    // Хэрэв history дамжуулсан бол түүнийг ашиглах (test-chat-аас)
+    if (history && Array.isArray(history)) {
+      conversationHistory = history
+    } else if (conversation_id) {
+      // DB-ээс авах (бодит харилцаанд)
       const { data: conversation } = await supabase
         .from('conversations')
         .select('messages')
@@ -59,30 +63,42 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 4. Base knowledge авах (Admin Panel-аас)
+    // 4. Base knowledge авах (Admin Panel-аас) - зөвхөн sales категори
     const { data: baseKnowledge } = await supabase
       .from('ai_base_knowledge')
-      .select('content')
+      .select('content, category')
       .eq('is_active', true)
+      .in('category', ['sales', 'general'])  // sales болон general категори
       .order('priority', { ascending: false })
       .limit(10)
 
     const baseKnowledgeText = baseKnowledge?.map(k => k.content).join('\n\n') || ''
 
-    // 5. AI Sales Agent ажиллуулах
+    // 5. Бүтээгдэхүүнүүд болон зургуудыг авах
+    const { data: products } = await supabase
+      .from('products')
+      .select('id, name, images')
+      .eq('project_id', project_id)
+      .eq('is_active', true)
+
+    // 6. AI Sales Agent ажиллуулах
     const aiResponse = await runSalesAgent({
       researchData: JSON.parse(researchData.ai_instructions),
       conversationHistory,
       customerMessage: message,
       customerInfo,
-      baseKnowledge: baseKnowledgeText
+      baseKnowledge: baseKnowledgeText,
+      products: products || []
     })
 
-    // 6. Харилцааг хадгалах
+    // 7. Харилцааг хадгалах
+    const responseMessage = typeof aiResponse === 'string' ? aiResponse : aiResponse.message
+    const imagesToSend = typeof aiResponse === 'string' ? [] : (aiResponse.images_to_send || [])
+
     const newMessages = [
       ...conversationHistory,
       { role: 'user' as const, content: message },
-      { role: 'assistant' as const, content: aiResponse }
+      { role: 'assistant' as const, content: responseMessage }
     ]
 
     if (conversation_id) {
@@ -99,7 +115,8 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      response: aiResponse,
+      response: responseMessage,
+      images: imagesToSend,
       conversation_id
     })
 

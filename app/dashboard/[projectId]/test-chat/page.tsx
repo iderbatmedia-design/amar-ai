@@ -7,6 +7,7 @@ import { Button, Card } from '@/components/ui'
 interface Message {
   role: 'user' | 'assistant'
   content: string
+  images?: string[]
 }
 
 export default function TestChatPage() {
@@ -76,13 +77,18 @@ export default function TestChatPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           project_id: projectId,
-          message: userMessage
+          message: userMessage,
+          history: messages  // Өмнөх харилцааг дамжуулах
         })
       })
 
       if (response.ok) {
         const data = await response.json()
-        setMessages(prev => [...prev, { role: 'assistant', content: data.response }])
+        setMessages(prev => [...prev, {
+          role: 'assistant',
+          content: data.response,
+          images: data.images || []
+        }])
       }
     } catch (error) {
       console.error('Chat error:', error)
@@ -195,6 +201,27 @@ export default function TestChatPage() {
                     <div className="text-xs text-gray-500 mb-1">🤖 AI Туслах</div>
                   )}
                   <div className="whitespace-pre-wrap">{message.content}</div>
+
+                  {/* Зургууд */}
+                  {message.images && message.images.length > 0 && (
+                    <div className="mt-3 grid grid-cols-2 gap-2">
+                      {message.images.map((img, imgIndex) => (
+                        <a
+                          key={imgIndex}
+                          href={img}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="block"
+                        >
+                          <img
+                            src={img}
+                            alt={`Бүтээгдэхүүний зураг ${imgIndex + 1}`}
+                            className="w-full h-32 object-cover rounded-lg border border-gray-200 hover:opacity-90 transition-opacity"
+                          />
+                        </a>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
