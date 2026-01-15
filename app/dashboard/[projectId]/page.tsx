@@ -167,18 +167,37 @@ export default function ProjectDashboard() {
             {/* Quick Actions */}
             <Card>
               <h3 className="font-semibold mb-4">Түргэн үйлдлүүд</h3>
-              <div className="flex flex-wrap gap-3">
-                <Button onClick={() => router.push(`/dashboard/${projectId}/test-chat`)}>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <Button onClick={() => router.push(`/dashboard/${projectId}/test-chat`)} className="justify-center">
                   💬 AI туршилт
                 </Button>
-                <Button onClick={() => router.push(`/dashboard/${projectId}/coach`)} variant="outline">
+                <Button onClick={() => router.push(`/dashboard/${projectId}/inbox`)} variant="outline" className="justify-center">
+                  📥 Inbox
+                </Button>
+                <Button onClick={() => router.push(`/dashboard/${projectId}/orders`)} variant="outline" className="justify-center">
+                  📦 Захиалгууд
+                </Button>
+                <Button onClick={() => router.push(`/dashboard/${projectId}/analytics`)} variant="outline" className="justify-center">
+                  📊 Статистик
+                </Button>
+              </div>
+            </Card>
+
+            {/* Settings */}
+            <Card>
+              <h3 className="font-semibold mb-4">Тохиргоо</h3>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <Button onClick={() => router.push(`/dashboard/${projectId}/brand`)} variant="outline" className="justify-center">
+                  🎨 Брэнд профайл
+                </Button>
+                <Button onClick={() => router.push(`/dashboard/${projectId}/coach`)} variant="outline" className="justify-center">
                   🤖 AI Зөвлөх
                 </Button>
-                <Button onClick={() => setActiveTab('products')} variant="outline">
-                  + Бүтээгдэхүүн нэмэх
+                <Button onClick={() => router.push(`/dashboard/${projectId}/connect`)} variant="outline" className="justify-center">
+                  🔗 FB/IG холбох
                 </Button>
-                <Button variant="outline">
-                  FB/IG холбох
+                <Button onClick={() => router.push(`/dashboard/${projectId}/products/new`)} variant="outline" className="justify-center">
+                  + Бүтээгдэхүүн
                 </Button>
               </div>
             </Card>

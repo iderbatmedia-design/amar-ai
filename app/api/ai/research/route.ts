@@ -45,22 +45,29 @@ export async function POST(request: NextRequest) {
       brandProfile: brandProfile || undefined
     })
 
-    // 5. Research data хадгалах
+    // 5. Research data хадгалах (update existing row)
     const { error: updateError } = await supabase
       .from('research_data')
-      .upsert({
-        project_id,
-        competitor_analysis: researchResult.key_selling_points,
-        market_insights: researchResult.target_customers,
-        recommended_responses: researchResult.common_questions,
+      .update({
         ai_instructions: JSON.stringify(researchResult),
         last_research_at: new Date().toISOString()
-      }, {
-        onConflict: 'project_id'
       })
+      .eq('project_id', project_id)
 
     if (updateError) {
       console.error('Error saving research:', updateError)
+      // Хэрэв update амжилтгүй бол insert оролдох
+      const { error: insertError } = await supabase
+        .from('research_data')
+        .insert({
+          project_id,
+          ai_instructions: JSON.stringify(researchResult),
+          last_research_at: new Date().toISOString()
+        })
+
+      if (insertError) {
+        console.error('Error inserting research:', insertError)
+      }
     }
 
     return NextResponse.json({
