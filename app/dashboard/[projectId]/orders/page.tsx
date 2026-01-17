@@ -10,11 +10,20 @@ interface Order {
   order_number: string
   status: string
   total_amount: number
-  items: Array<{ name: string; quantity: number; price: number }>
+  items: Array<{ name: string; quantity: number; price: number; product_id?: string }>
   shipping_address: string
+  customer_address: string
   phone: string
+  customer_phone: string
+  customer_name: string
+  notes: string
+  payment_method: string
+  payment_status: string
   created_at: string
-  customers?: { name: string }
+  confirmed_at: string
+  shipped_at: string
+  delivered_at: string
+  customers?: { name: string; profile_picture?: string; platform?: string }
 }
 
 const statusLabels: Record<string, { label: string; color: string }> = {
@@ -42,7 +51,7 @@ export default function OrdersPage() {
     try {
       const { data } = await supabase
         .from('orders')
-        .select('*, customers(name)')
+        .select('*, customers(name, profile_picture, platform)')
         .eq('project_id', projectId)
         .order('created_at', { ascending: false })
 
@@ -136,21 +145,45 @@ export default function OrdersPage() {
             {filteredOrders.map((order) => (
               <Card key={order.id}>
                 <div className="flex justify-between items-start mb-4">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold">#{order.order_number || order.id.slice(0, 8)}</span>
-                      <span className={`px-2 py-1 text-xs rounded-full ${statusLabels[order.status]?.color}`}>
-                        {statusLabels[order.status]?.label}
-                      </span>
-                    </div>
-                    <div className="text-sm text-gray-500 mt-1">
-                      {order.customers?.name || 'Нэргүй'} • {new Date(order.created_at).toLocaleDateString('mn-MN')}
+                  <div className="flex items-start gap-3">
+                    {/* Customer Profile */}
+                    {order.customers?.profile_picture ? (
+                      <img
+                        src={order.customers.profile_picture}
+                        alt=""
+                        className="w-10 h-10 rounded-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white font-bold">
+                        {(order.customers?.name || order.customer_name)?.charAt(0).toUpperCase() || '?'}
+                      </div>
+                    )}
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold">#{order.order_number || order.id.slice(0, 8)}</span>
+                        <span className={`px-2 py-1 text-xs rounded-full ${statusLabels[order.status]?.color}`}>
+                          {statusLabels[order.status]?.label}
+                        </span>
+                      </div>
+                      <div className="text-sm text-gray-500 mt-1 flex items-center gap-2">
+                        <span>{order.customers?.platform === 'facebook' ? '📘' : order.customers?.platform === 'instagram' ? '📷' : '🌐'}</span>
+                        <span>{order.customers?.name || order.customer_name || 'Нэргүй'}</span>
+                        <span>•</span>
+                        <span>{new Date(order.created_at).toLocaleDateString('mn-MN')}</span>
+                      </div>
                     </div>
                   </div>
                   <div className="text-right">
                     <div className="text-lg font-bold text-blue-600">
                       {order.total_amount?.toLocaleString() || 0}₮
                     </div>
+                    {order.payment_status && (
+                      <span className={`text-xs px-2 py-0.5 rounded ${
+                        order.payment_status === 'paid' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
+                      }`}>
+                        {order.payment_status === 'paid' ? 'Төлсөн' : 'Төлөөгүй'}
+                      </span>
+                    )}
                   </div>
                 </div>
 
@@ -166,11 +199,35 @@ export default function OrdersPage() {
                   </div>
                 )}
 
-                {/* Contact */}
-                {(order.phone || order.shipping_address) && (
-                  <div className="text-sm text-gray-600 border-t border-gray-100 pt-3">
-                    {order.phone && <div>📞 {order.phone}</div>}
-                    {order.shipping_address && <div>📍 {order.shipping_address}</div>}
+                {/* Contact & Shipping */}
+                {(order.customer_phone || order.phone || order.customer_address || order.shipping_address || order.notes) && (
+                  <div className="text-sm text-gray-600 border-t border-gray-100 pt-3 space-y-1">
+                    {(order.customer_phone || order.phone) && (
+                      <div>📞 {order.customer_phone || order.phone}</div>
+                    )}
+                    {(order.customer_address || order.shipping_address) && (
+                      <div>📍 {order.customer_address || order.shipping_address}</div>
+                    )}
+                    {order.notes && (
+                      <div className="text-gray-500 italic">📝 {order.notes}</div>
+                    )}
+                  </div>
+                )}
+
+                {/* Timeline */}
+                {(order.confirmed_at || order.shipped_at || order.delivered_at) && (
+                  <div className="border-t border-gray-100 pt-3 mt-3">
+                    <div className="flex items-center gap-4 text-xs text-gray-500">
+                      {order.confirmed_at && (
+                        <span>✓ Батлагдсан: {new Date(order.confirmed_at).toLocaleDateString('mn-MN')}</span>
+                      )}
+                      {order.shipped_at && (
+                        <span>📤 Илгээсэн: {new Date(order.shipped_at).toLocaleDateString('mn-MN')}</span>
+                      )}
+                      {order.delivered_at && (
+                        <span>✅ Хүргэгдсэн: {new Date(order.delivered_at).toLocaleDateString('mn-MN')}</span>
+                      )}
+                    </div>
                   </div>
                 )}
 

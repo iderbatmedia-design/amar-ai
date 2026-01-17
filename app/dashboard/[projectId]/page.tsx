@@ -31,6 +31,15 @@ export default function ProjectDashboard() {
         return
       }
 
+      // Team member эсэх шалгах (owner эсвэл team member)
+      const { data: teamMember } = await supabase
+        .from('team_members')
+        .select('role, permissions')
+        .eq('project_id', projectId)
+        .eq('user_id', user.id)
+        .eq('status', 'active')
+        .single()
+
       // Project авах
       const { data: projectData, error: projectError } = await supabase
         .from('projects')
@@ -39,6 +48,12 @@ export default function ProjectDashboard() {
         .single()
 
       if (projectError || !projectData) {
+        router.push('/dashboard')
+        return
+      }
+
+      // Team member эсвэл owner биш бол хандалтгүй
+      if (!teamMember && projectData.user_id !== user.id) {
         router.push('/dashboard')
         return
       }
@@ -167,12 +182,15 @@ export default function ProjectDashboard() {
             {/* Quick Actions */}
             <Card>
               <h3 className="font-semibold mb-4">Түргэн үйлдлүүд</h3>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
                 <Button onClick={() => router.push(`/dashboard/${projectId}/test-chat`)} className="justify-center">
                   💬 AI туршилт
                 </Button>
                 <Button onClick={() => router.push(`/dashboard/${projectId}/inbox`)} variant="outline" className="justify-center">
                   📥 Inbox
+                </Button>
+                <Button onClick={() => router.push(`/dashboard/${projectId}/customers`)} variant="outline" className="justify-center">
+                  👥 Харилцагч
                 </Button>
                 <Button onClick={() => router.push(`/dashboard/${projectId}/orders`)} variant="outline" className="justify-center">
                   📦 Захиалгууд
@@ -186,7 +204,7 @@ export default function ProjectDashboard() {
             {/* AI Settings */}
             <Card>
               <h3 className="font-semibold mb-4">AI тохиргоо</h3>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
                 <Button onClick={() => router.push(`/dashboard/${projectId}/research`)} variant="outline" className="justify-center">
                   🔬 AI Судалгаа
                 </Button>
@@ -198,6 +216,19 @@ export default function ProjectDashboard() {
                 </Button>
                 <Button onClick={() => router.push(`/dashboard/${projectId}/connect`)} variant="outline" className="justify-center">
                   🔗 FB/IG холбох
+                </Button>
+                <Button onClick={() => router.push(`/dashboard/${projectId}/widget`)} variant="outline" className="justify-center">
+                  🌐 Web Widget
+                </Button>
+              </div>
+            </Card>
+
+            {/* Team Management */}
+            <Card>
+              <h3 className="font-semibold mb-4">Багийн удирдлага</h3>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                <Button onClick={() => router.push(`/dashboard/${projectId}/team`)} variant="outline" className="justify-center">
+                  👥 Баг
                 </Button>
               </div>
             </Card>

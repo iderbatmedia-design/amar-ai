@@ -9,10 +9,15 @@ import type { Project } from '@/types'
 // Admin имэйлүүд
 const ADMIN_EMAILS = ['admin@amarai.mn', 'orgilb295@gmail.com']
 
+interface ProjectWithRole extends Project {
+  teamRole?: string
+}
+
 export default function DashboardPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(true)
-  const [projects, setProjects] = useState<Project[]>([])
+  const [projects, setProjects] = useState<ProjectWithRole[]>([])
+  const [teamProjects, setTeamProjects] = useState<ProjectWithRole[]>([])
   const [userEmail, setUserEmail] = useState('')
   const [isAdmin, setIsAdmin] = useState(false)
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
@@ -38,14 +43,36 @@ export default function DashboardPage() {
       const { user } = await getCurrentUser()
       if (!user) return
 
-      const { data, error } = await supabase
+      // Өөрийн төслүүд
+      const { data: ownProjects, error } = await supabase
         .from('projects')
         .select('*')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
 
       if (error) throw error
-      setProjects(data || [])
+      setProjects(ownProjects || [])
+
+      // Team member болсон төслүүд (өөрийнх биш)
+      const { data: teamMemberships } = await supabase
+        .from('team_members')
+        .select(`
+          role,
+          project:project_id (*)
+        `)
+        .eq('user_id', user.id)
+        .eq('status', 'active')
+        .neq('role', 'owner')
+
+      if (teamMemberships) {
+        const teamProjectsList = teamMemberships
+          .filter((m) => m.project)
+          .map((m) => ({
+            ...(m.project as unknown as Project),
+            teamRole: m.role as string
+          }))
+        setTeamProjects(teamProjectsList)
+      }
     } catch (error) {
       console.error('Error loading projects:', error)
     } finally {
@@ -143,7 +170,7 @@ export default function DashboardPage() {
           </Button>
         </div>
 
-        {projects.length === 0 ? (
+        {projects.length === 0 && teamProjects.length === 0 ? (
           <Card className="text-center py-12">
             <div className="text-gray-400 mb-4">
               <svg className="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -157,62 +184,106 @@ export default function DashboardPage() {
             </Button>
           </Card>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {projects.map((project) => (
-              <Card
-                key={project.id}
-                className="cursor-pointer hover:shadow-md transition-shadow relative"
-                onClick={() => router.push(`/dashboard/${project.id}`)}
-              >
-                <div className="flex items-start justify-between mb-4">
-                  <div>
-                    <h3 className="font-semibold text-gray-900">{project.name}</h3>
-                    <p className="text-sm text-gray-500">{project.industry}</p>
-                  </div>
-                  <span className={`px-2 py-1 text-xs rounded-full ${
-                    project.status === 'active'
-                      ? 'bg-green-100 text-green-700'
-                      : 'bg-gray-100 text-gray-600'
-                  }`}>
-                    {project.status === 'active' ? 'Идэвхтэй' : 'Зогссон'}
-                  </span>
-                </div>
-                <p className="text-sm text-gray-600 line-clamp-2">{project.description}</p>
-                <div className="mt-4 pt-4 border-t border-gray-100 flex items-center justify-between text-sm text-gray-500">
-                  <span>AI: {project.ai_name}</span>
-
-                  {/* Устгах товч */}
-                  {deleteConfirm === project.id ? (
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={(e) => handleDeleteProject(project.id, e)}
-                        disabled={deleting}
-                        className="px-2 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50"
-                      >
-                        {deleting ? '...' : 'Устгах'}
-                      </button>
-                      <button
-                        onClick={cancelDelete}
-                        className="px-2 py-1 text-xs bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
-                      >
-                        Болих
-                      </button>
+          <>
+          {/* Team Projects */}
+          {teamProjects.length > 0 && (
+            <div className="mb-8">
+              <h3 className="text-lg font-semibold text-gray-700 mb-4">👥 Багийн төслүүд</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {teamProjects.map((project) => (
+                  <Card
+                    key={project.id}
+                    className="cursor-pointer hover:shadow-md transition-shadow border-l-4 border-blue-400"
+                    onClick={() => router.push(`/dashboard/${project.id}`)}
+                  >
+                    <div className="flex items-start justify-between mb-4">
+                      <div>
+                        <h3 className="font-semibold text-gray-900">{project.name}</h3>
+                        <p className="text-sm text-gray-500">{project.industry}</p>
+                      </div>
+                      <span className={`px-2 py-1 text-xs rounded-full ${
+                        project.teamRole === 'admin'
+                          ? 'bg-blue-100 text-blue-700'
+                          : 'bg-gray-100 text-gray-600'
+                      }`}>
+                        {project.teamRole === 'admin' ? 'Админ' : 'Гишүүн'}
+                      </span>
                     </div>
-                  ) : (
-                    <button
-                      onClick={(e) => handleDeleteProject(project.id, e)}
-                      className="p-1 text-gray-400 hover:text-red-600 transition-colors"
-                      title="Төсөл устгах"
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
-                    </button>
-                  )}
-                </div>
-              </Card>
-            ))}
-          </div>
+                    <p className="text-sm text-gray-600 line-clamp-2">{project.description}</p>
+                    <div className="mt-4 pt-4 border-t border-gray-100 flex items-center justify-between text-sm text-gray-500">
+                      <span>AI: {project.ai_name}</span>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Own Projects */}
+          {projects.length > 0 && (
+            <div>
+              {teamProjects.length > 0 && (
+                <h3 className="text-lg font-semibold text-gray-700 mb-4">📁 Миний төслүүд</h3>
+              )}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {projects.map((project) => (
+                  <Card
+                    key={project.id}
+                    className="cursor-pointer hover:shadow-md transition-shadow relative"
+                    onClick={() => router.push(`/dashboard/${project.id}`)}
+                  >
+                    <div className="flex items-start justify-between mb-4">
+                      <div>
+                        <h3 className="font-semibold text-gray-900">{project.name}</h3>
+                        <p className="text-sm text-gray-500">{project.industry}</p>
+                      </div>
+                      <span className={`px-2 py-1 text-xs rounded-full ${
+                        project.status === 'active'
+                          ? 'bg-green-100 text-green-700'
+                          : 'bg-gray-100 text-gray-600'
+                      }`}>
+                        {project.status === 'active' ? 'Идэвхтэй' : 'Зогссон'}
+                      </span>
+                    </div>
+                    <p className="text-sm text-gray-600 line-clamp-2">{project.description}</p>
+                    <div className="mt-4 pt-4 border-t border-gray-100 flex items-center justify-between text-sm text-gray-500">
+                      <span>AI: {project.ai_name}</span>
+
+                      {/* Устгах товч */}
+                      {deleteConfirm === project.id ? (
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={(e) => handleDeleteProject(project.id, e)}
+                            disabled={deleting}
+                            className="px-2 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50"
+                          >
+                            {deleting ? '...' : 'Устгах'}
+                          </button>
+                          <button
+                            onClick={cancelDelete}
+                            className="px-2 py-1 text-xs bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
+                          >
+                            Болих
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={(e) => handleDeleteProject(project.id, e)}
+                          className="p-1 text-gray-400 hover:text-red-600 transition-colors"
+                          title="Төсөл устгах"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        </button>
+                      )}
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          )}
+          </>
         )}
       </main>
     </div>
