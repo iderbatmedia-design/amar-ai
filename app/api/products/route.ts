@@ -14,14 +14,14 @@ export async function GET(request: NextRequest) {
 
     const { data: products, error } = await supabase
       .from('products')
-      .select(`
-        *,
-        product_media (*)
-      `)
+      .select('*')
       .eq('project_id', projectId)
       .order('created_at', { ascending: false })
 
-    if (error) throw error
+    if (error) {
+      console.error('Supabase GET error:', error)
+      throw error
+    }
 
     return NextResponse.json(products)
   } catch (error) {
@@ -34,9 +34,18 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const supabase = createServerClient()
-    const body = await request.json()
 
-    const { project_id, name, description, price, features, stock } = body
+    let body
+    try {
+      body = await request.json()
+    } catch (parseError) {
+      console.error('JSON parse error:', parseError)
+      return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
+    }
+
+    console.log('Creating product with data:', JSON.stringify(body, null, 2))
+
+    const { project_id, name, description, price, features, stock, category, sku, is_active } = body
 
     if (!project_id || !name) {
       return NextResponse.json(
@@ -45,24 +54,71 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    const insertData = {
+      project_id,
+      name,
+      description: description || null,
+      price: price || null,
+      features: features || null,
+      stock: stock || 0,
+      category: category || null,
+      sku: sku || null,
+      is_active: is_active ?? true
+    }
+
+    console.log('Insert data:', JSON.stringify(insertData, null, 2))
+
     const { data: product, error } = await supabase
       .from('products')
-      .insert({
-        project_id,
-        name,
-        description: description || null,
-        price: price || null,
-        features: features || null,
-        stock: stock || 0
-      })
+      .insert(insertData)
+      .select()
+      .single()
+
+    if (error) {
+      console.error('Supabase POST error:', JSON.stringify(error, null, 2))
+      return NextResponse.json({
+        error: error.message || 'Database error',
+        details: error.details,
+        hint: error.hint,
+        code: error.code
+      }, { status: 500 })
+    }
+
+    console.log('Product created successfully:', product?.id)
+    return NextResponse.json(product, { status: 201 })
+  } catch (error: any) {
+    console.error('Error creating product:', error)
+    return NextResponse.json({
+      error: error?.message || 'Failed to create product',
+      stack: process.env.NODE_ENV === 'development' ? error?.stack : undefined
+    }, { status: 500 })
+  }
+}
+
+// PATCH - Product шинэчлэх
+export async function PATCH(request: NextRequest) {
+  try {
+    const supabase = createServerClient()
+    const body = await request.json()
+
+    const { id, ...updateData } = body
+
+    if (!id) {
+      return NextResponse.json({ error: 'product id is required' }, { status: 400 })
+    }
+
+    const { data: product, error } = await supabase
+      .from('products')
+      .update(updateData)
+      .eq('id', id)
       .select()
       .single()
 
     if (error) throw error
 
-    return NextResponse.json(product, { status: 201 })
+    return NextResponse.json(product)
   } catch (error) {
-    console.error('Error creating product:', error)
-    return NextResponse.json({ error: 'Failed to create product' }, { status: 500 })
+    console.error('Error updating product:', error)
+    return NextResponse.json({ error: 'Failed to update product' }, { status: 500 })
   }
 }

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { Button, Card } from '@/components/ui'
 import { supabase } from '@/app/lib/supabase'
 
@@ -17,14 +17,46 @@ interface SocialAccount {
 export default function ConnectPage() {
   const params = useParams()
   const router = useRouter()
+  const searchParams = useSearchParams()
   const projectId = params.projectId as string
 
   const [loading, setLoading] = useState(true)
   const [accounts, setAccounts] = useState<SocialAccount[]>([])
+  const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null)
+  const [showManualForm, setShowManualForm] = useState(false)
+  const [manualToken, setManualToken] = useState('')
+  const [manualPageId, setManualPageId] = useState('')
+  const [manualPageName, setManualPageName] = useState('')
+  const [savingManual, setSavingManual] = useState(false)
 
   useEffect(() => {
     loadAccounts()
-  }, [projectId])
+
+    // Check URL params for success/error messages
+    const success = searchParams.get('success')
+    const error = searchParams.get('error')
+    const count = searchParams.get('count')
+
+    if (success === 'true') {
+      setMessage({
+        type: 'success',
+        text: `Амжилттай холбогдлоо! ${count ? `${count} хуудас нэмэгдлээ.` : ''}`
+      })
+      // Clear URL params after showing message
+      window.history.replaceState({}, '', `/dashboard/${projectId}/connect`)
+    } else if (error) {
+      const errorMessages: Record<string, string> = {
+        'oauth_denied': 'Хэрэглэгч зөвшөөрөл өгсөнгүй',
+        'missing_params': 'Алдаа: Шаардлагатай параметр дутуу',
+        'token_exchange_failed': 'Token солилцоход алдаа гарлаа',
+        'pages_fetch_failed': 'Facebook хуудсуудыг авахад алдаа гарлаа',
+        'no_pages': 'Танд удирдах Facebook хуудас байхгүй байна',
+        'server_error': 'Серверийн алдаа гарлаа'
+      }
+      setMessage({ type: 'error', text: errorMessages[error] || 'Алдаа гарлаа' })
+      window.history.replaceState({}, '', `/dashboard/${projectId}/connect`)
+    }
+  }, [projectId, searchParams])
 
   const loadAccounts = async () => {
     try {
@@ -91,6 +123,41 @@ export default function ConnectPage() {
     }
   }
 
+  // Гараар token оруулах
+  const saveManualConnection = async () => {
+    if (!manualToken || !manualPageId || !manualPageName) {
+      setMessage({ type: 'error', text: 'Бүх талбарыг бөглөнө үү' })
+      return
+    }
+
+    setSavingManual(true)
+    try {
+      const { error } = await supabase
+        .from('social_accounts')
+        .insert({
+          project_id: projectId,
+          platform: 'facebook',
+          page_id: manualPageId,
+          page_name: manualPageName,
+          access_token: manualToken
+        })
+
+      if (error) throw error
+
+      setMessage({ type: 'success', text: 'Амжилттай холбогдлоо!' })
+      setShowManualForm(false)
+      setManualToken('')
+      setManualPageId('')
+      setManualPageName('')
+      loadAccounts()
+    } catch (error) {
+      console.error('Error saving:', error)
+      setMessage({ type: 'error', text: 'Хадгалахад алдаа гарлаа' })
+    } finally {
+      setSavingManual(false)
+    }
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -113,6 +180,23 @@ export default function ConnectPage() {
       </header>
 
       <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+        {/* Success/Error Message */}
+        {message && (
+          <div className={`p-4 rounded-lg ${
+            message.type === 'success'
+              ? 'bg-green-50 border border-green-200 text-green-700'
+              : 'bg-red-50 border border-red-200 text-red-700'
+          }`}>
+            {message.type === 'success' ? '✅ ' : '❌ '}{message.text}
+            <button
+              onClick={() => setMessage(null)}
+              className="float-right text-gray-500 hover:text-gray-700"
+            >
+              ✕
+            </button>
+          </div>
+        )}
+
         {/* Connected Accounts */}
         {accounts.length > 0 && (
           <div>
@@ -181,6 +265,68 @@ export default function ConnectPage() {
               </Button>
             </Card>
           </div>
+        </div>
+
+        {/* Manual Connection */}
+        <div>
+          <button
+            onClick={() => setShowManualForm(!showManualForm)}
+            className="text-sm text-blue-600 hover:underline mb-3"
+          >
+            {showManualForm ? '▼ Гараар холбох хэсгийг хаах' : '▶ Гараар холбох (Developer Console-оос)'}
+          </button>
+
+          {showManualForm && (
+            <Card className="space-y-4">
+              <h3 className="font-semibold">Meta Developer Console-оос гараар холбох</h3>
+              <p className="text-sm text-gray-500">
+                Meta Developer Console дээрээс Page Access Token авсан бол энд оруулна уу.
+              </p>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Page Name
+                </label>
+                <input
+                  type="text"
+                  value={manualPageName}
+                  onChange={(e) => setManualPageName(e.target.value)}
+                  placeholder="CoupleLab Mongolia"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Page ID
+                </label>
+                <input
+                  type="text"
+                  value={manualPageId}
+                  onChange={(e) => setManualPageId(e.target.value)}
+                  placeholder="897687530096584"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Page Access Token
+                </label>
+                <textarea
+                  value={manualToken}
+                  onChange={(e) => setManualToken(e.target.value)}
+                  placeholder="EAAkIWPMfaF4BQ..."
+                  rows={3}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-xs"
+                />
+              </div>
+
+              <Button onClick={saveManualConnection} loading={savingManual}>
+                Холбох
+              </Button>
+            </Card>
+          )}
         </div>
 
         {/* Instructions */}

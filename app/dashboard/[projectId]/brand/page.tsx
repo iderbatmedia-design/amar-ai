@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { Button, Input, Card } from '@/components/ui'
+import { Button, Card } from '@/components/ui'
 import { supabase } from '@/app/lib/supabase'
 
 export default function BrandProfilePage() {
@@ -21,7 +21,8 @@ export default function BrandProfilePage() {
     greeting_templates: '',
     closing_templates: '',
     forbidden_words: '',
-    preferred_phrases: ''
+    preferred_phrases: '',
+    website_url: ''
   })
 
   useEffect(() => {
@@ -45,7 +46,8 @@ export default function BrandProfilePage() {
           greeting_templates: data.greeting_templates?.join('\n') || '',
           closing_templates: data.closing_templates?.join('\n') || '',
           forbidden_words: data.forbidden_words?.join('\n') || '',
-          preferred_phrases: data.preferred_phrases?.join('\n') || ''
+          preferred_phrases: data.preferred_phrases?.join('\n') || '',
+          website_url: data.website_url || ''
         })
       }
     } catch (error) {
@@ -67,7 +69,8 @@ export default function BrandProfilePage() {
         greeting_templates: formData.greeting_templates ? formData.greeting_templates.split('\n').filter(x => x.trim()) : null,
         closing_templates: formData.closing_templates ? formData.closing_templates.split('\n').filter(x => x.trim()) : null,
         forbidden_words: formData.forbidden_words ? formData.forbidden_words.split('\n').filter(x => x.trim()) : null,
-        preferred_phrases: formData.preferred_phrases ? formData.preferred_phrases.split('\n').filter(x => x.trim()) : null
+        preferred_phrases: formData.preferred_phrases ? formData.preferred_phrases.split('\n').filter(x => x.trim()) : null,
+        website_url: formData.website_url || null
       }
 
       const { error } = await supabase
@@ -119,6 +122,18 @@ export default function BrandProfilePage() {
       </header>
 
       <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+        <Card>
+          <h3 className="font-semibold mb-4">🔗 Вэбсайт линк</h3>
+          <p className="text-sm text-gray-500 mb-2">AI энэ линкийг харилцагчдад хуваалцана</p>
+          <input
+            type="url"
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder="https://couplelab.mn"
+            value={formData.website_url}
+            onChange={(e) => setFormData(prev => ({ ...prev, website_url: e.target.value }))}
+          />
+        </Card>
+
         <Card>
           <h3 className="font-semibold mb-4">Брэндийн түүх</h3>
           <textarea

@@ -13,13 +13,54 @@ interface ResearchData {
 }
 
 interface AIInstructions {
+  business_summary?: string
+  core_value_proposition?: string
+  sales_channel?: 'website' | 'delivery' | 'both'
+  is_digital_product?: boolean
+  purchase_instructions?: string
   market_analysis?: string
-  customer_behavior?: string
-  usp_per_product?: Array<{ product: string; usp: string }>
-  objection_handling?: Array<{ objection: string; response: string }>
-  key_selling_points?: string[]
   target_audience?: string
+  customer_psychology?: {
+    pain_points?: string[]
+    desires?: string[]
+    fears?: string[]
+    buying_triggers?: string[]
+  }
+  customer_behavior?: string
   brand_voice?: string
+  key_selling_points?: string[]
+  usp_per_product?: Array<{
+    product: string
+    usp: string
+    elevator_pitch?: string
+    transformation?: string
+  }>
+  product_knowledge?: Array<{
+    product_name: string
+    product_type: string
+    short_pitch: string
+    detailed_description?: string
+    benefits: string[]
+    features?: string[]
+    ideal_for: string
+    not_for?: string
+    how_to_buy: string
+  }>
+  sales_scripts?: {
+    opening?: string
+    qualifying?: string
+    presenting?: string
+    closing?: string
+    follow_up?: string
+  }
+  common_questions?: Array<{ question: string; answer: string }>
+  objection_handling?: Array<{ objection: string; response: string }>
+  urgency_tactics?: string[]
+  social_proof?: string
+  sales_tips?: string[]
+  greeting_style?: string
+  tone_guidelines?: string
+  do_not_say?: string[]
   [key: string]: any
 }
 
@@ -220,6 +261,86 @@ export default function ResearchPage() {
               </div>
             )}
 
+            {/* Business Summary */}
+            <Card>
+              <h3 className="font-semibold mb-3">💼 Бизнесийн товч танилцуулга</h3>
+              {editMode ? (
+                <textarea
+                  value={instructions.business_summary || ''}
+                  onChange={(e) => updateField('business_summary', e.target.value)}
+                  rows={3}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Бизнесийн товч тайлбар..."
+                />
+              ) : (
+                <p className="text-gray-700 whitespace-pre-wrap">
+                  {instructions.business_summary || 'Мэдээлэл байхгүй'}
+                </p>
+              )}
+            </Card>
+
+            {/* Sales Channel & Digital Product */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Card>
+                <h3 className="font-semibold mb-3">🛒 Борлуулалтын суваг</h3>
+                {editMode ? (
+                  <select
+                    value={instructions.sales_channel || 'both'}
+                    onChange={(e) => updateField('sales_channel', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="website">Вэбсайт (Онлайн захиалга)</option>
+                    <option value="delivery">Хүргэлт (Хаяг авах)</option>
+                    <option value="both">Хоёулаа</option>
+                  </select>
+                ) : (
+                  <p className="text-gray-700">
+                    {instructions.sales_channel === 'website' && '🌐 Вэбсайт (Онлайн захиалга)'}
+                    {instructions.sales_channel === 'delivery' && '🚚 Хүргэлт (Хаяг авах)'}
+                    {instructions.sales_channel === 'both' && '🌐🚚 Вэбсайт + Хүргэлт'}
+                    {!instructions.sales_channel && 'Тодорхойгүй'}
+                  </p>
+                )}
+              </Card>
+
+              <Card>
+                <h3 className="font-semibold mb-3">📱 Дижитал бүтээгдэхүүн</h3>
+                {editMode ? (
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={instructions.is_digital_product || false}
+                      onChange={(e) => updateField('is_digital_product', e.target.checked)}
+                      className="w-5 h-5 rounded border-gray-300"
+                    />
+                    <span>Тийм (PDF, Онлайн курс гэх мэт)</span>
+                  </label>
+                ) : (
+                  <p className="text-gray-700">
+                    {instructions.is_digital_product ? '✅ Тийм - Хүргэлт шаардлагагүй' : '📦 Үгүй - Биет бүтээгдэхүүн'}
+                  </p>
+                )}
+              </Card>
+            </div>
+
+            {/* Purchase Instructions */}
+            <Card>
+              <h3 className="font-semibold mb-3">📝 Захиалга хийх заавар</h3>
+              {editMode ? (
+                <textarea
+                  value={instructions.purchase_instructions || ''}
+                  onChange={(e) => updateField('purchase_instructions', e.target.value)}
+                  rows={3}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Хэрхэн захиалга өгөх тухай заавар..."
+                />
+              ) : (
+                <p className="text-gray-700 whitespace-pre-wrap">
+                  {instructions.purchase_instructions || 'Мэдээлэл байхгүй'}
+                </p>
+              )}
+            </Card>
+
             {/* Market Analysis */}
             <Card>
               <h3 className="font-semibold mb-3">📊 Зах зээлийн шинжилгээ</h3>
@@ -255,6 +376,93 @@ export default function ResearchPage() {
                 </p>
               )}
             </Card>
+
+            {/* Customer Psychology */}
+            {instructions.customer_psychology && (
+              <Card>
+                <h3 className="font-semibold mb-3">🧠 Хэрэглэгчийн сэтгэл зүй</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Pain Points */}
+                  <div className="bg-red-50 p-3 rounded-lg">
+                    <h4 className="font-medium text-red-800 mb-2">😣 Өвдөлтийн цэгүүд</h4>
+                    <ul className="text-sm text-red-700 space-y-1">
+                      {(instructions.customer_psychology.pain_points || []).map((point, i) => (
+                        <li key={i}>• {point}</li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  {/* Desires */}
+                  <div className="bg-green-50 p-3 rounded-lg">
+                    <h4 className="font-medium text-green-800 mb-2">✨ Хүсэл тэмүүлэл</h4>
+                    <ul className="text-sm text-green-700 space-y-1">
+                      {(instructions.customer_psychology.desires || []).map((desire, i) => (
+                        <li key={i}>• {desire}</li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  {/* Fears */}
+                  <div className="bg-purple-50 p-3 rounded-lg">
+                    <h4 className="font-medium text-purple-800 mb-2">😰 Айдас</h4>
+                    <ul className="text-sm text-purple-700 space-y-1">
+                      {(instructions.customer_psychology.fears || []).map((fear, i) => (
+                        <li key={i}>• {fear}</li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  {/* Buying Triggers */}
+                  <div className="bg-blue-50 p-3 rounded-lg">
+                    <h4 className="font-medium text-blue-800 mb-2">🎯 Худалдан авах триггер</h4>
+                    <ul className="text-sm text-blue-700 space-y-1">
+                      {(instructions.customer_psychology.buying_triggers || []).map((trigger, i) => (
+                        <li key={i}>• {trigger}</li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              </Card>
+            )}
+
+            {/* Sales Scripts */}
+            {instructions.sales_scripts && (
+              <Card>
+                <h3 className="font-semibold mb-3">📜 Борлуулалтын скриптүүд</h3>
+                <div className="space-y-4">
+                  {instructions.sales_scripts.opening && (
+                    <div className="bg-blue-50 p-3 rounded-lg">
+                      <h4 className="font-medium text-blue-800 mb-1">🎬 Яриа эхлүүлэх</h4>
+                      <p className="text-sm text-blue-700">{instructions.sales_scripts.opening}</p>
+                    </div>
+                  )}
+                  {instructions.sales_scripts.qualifying && (
+                    <div className="bg-green-50 p-3 rounded-lg">
+                      <h4 className="font-medium text-green-800 mb-1">❓ Хэрэгцээ тодорхойлох</h4>
+                      <p className="text-sm text-green-700">{instructions.sales_scripts.qualifying}</p>
+                    </div>
+                  )}
+                  {instructions.sales_scripts.presenting && (
+                    <div className="bg-purple-50 p-3 rounded-lg">
+                      <h4 className="font-medium text-purple-800 mb-1">🎁 Танилцуулах</h4>
+                      <p className="text-sm text-purple-700">{instructions.sales_scripts.presenting}</p>
+                    </div>
+                  )}
+                  {instructions.sales_scripts.closing && (
+                    <div className="bg-orange-50 p-3 rounded-lg">
+                      <h4 className="font-medium text-orange-800 mb-1">🎯 Хаалт хийх</h4>
+                      <p className="text-sm text-orange-700">{instructions.sales_scripts.closing}</p>
+                    </div>
+                  )}
+                  {instructions.sales_scripts.follow_up && (
+                    <div className="bg-gray-50 p-3 rounded-lg">
+                      <h4 className="font-medium text-gray-800 mb-1">📞 Дахин холбогдох</h4>
+                      <p className="text-sm text-gray-700">{instructions.sales_scripts.follow_up}</p>
+                    </div>
+                  )}
+                </div>
+              </Card>
+            )}
 
             {/* Customer Behavior */}
             <Card>

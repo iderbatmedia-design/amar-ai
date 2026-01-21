@@ -74,10 +74,10 @@ export async function POST(request: NextRequest) {
 
     const baseKnowledgeText = baseKnowledge?.map(k => k.content).join('\n\n') || ''
 
-    // 5. Бүтээгдэхүүнүүд болон зургуудыг авах
+    // 5. Бүтээгдэхүүнүүд болон зургуудыг авах (үнэ, тайлбар гэх мэт бүх мэдээлэл)
     const { data: products } = await supabase
       .from('products')
-      .select('id, name, images')
+      .select('id, name, description, price, features, stock, images')
       .eq('project_id', project_id)
       .eq('is_active', true)
 
@@ -91,10 +91,59 @@ export async function POST(request: NextRequest) {
       products: products || []
     })
 
-    // 7. Харилцааг хадгалах
+    // 7. AI хариуг задлах
     const responseMessage = typeof aiResponse === 'string' ? aiResponse : aiResponse.message
     const imagesToSend = typeof aiResponse === 'string' ? [] : (aiResponse.images_to_send || [])
 
+    // 8. Захиалга үүсгэх (AI хүсвэл)
+    let createdOrder = null
+    if (typeof aiResponse !== 'string' && aiResponse.create_order) {
+      const orderData = aiResponse.create_order
+      try {
+        const { data: order, error: orderError } = await supabase
+          .from('orders')
+          .insert({
+            project_id,
+            customer_id: customer_id || null,
+            conversation_id: conversation_id || null,
+            items: orderData.items || [],
+            total_amount: orderData.total_amount || 0,
+            customer_phone: orderData.customer_phone || null,
+            customer_address: orderData.customer_address || null,
+            customer_name: orderData.customer_name || null,
+            status: 'pending'
+          })
+          .select()
+          .single()
+
+        if (!orderError && order) {
+          createdOrder = order
+
+          // Харилцагчийн статистик шинэчлэх (байвал)
+          if (customer_id) {
+            const { data: customer } = await supabase
+              .from('customers')
+              .select('total_orders')
+              .eq('id', customer_id)
+              .single()
+
+            if (customer) {
+              await supabase
+                .from('customers')
+                .update({
+                  total_orders: (customer.total_orders || 0) + 1,
+                  lead_score: 'hot'
+                })
+                .eq('id', customer_id)
+            }
+          }
+        }
+      } catch (orderErr) {
+        console.error('Order creation error:', orderErr)
+      }
+    }
+
+    // 9. Харилцааг хадгалах
     const newMessages = [
       ...conversationHistory,
       { role: 'user' as const, content: message },
@@ -117,7 +166,8 @@ export async function POST(request: NextRequest) {
       success: true,
       response: responseMessage,
       images: imagesToSend,
-      conversation_id
+      conversation_id,
+      order: createdOrder
     })
 
   } catch (error) {

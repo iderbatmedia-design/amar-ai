@@ -59,30 +59,66 @@ export async function POST(request: NextRequest) {
       baseKnowledge: baseKnowledgeText
     })
 
-    // 6. Research data хадгалах (update existing row)
-    const { error: updateError } = await supabase
-      .from('research_data')
-      .update({
-        ai_instructions: JSON.stringify(researchResult),
-        last_research_at: new Date().toISOString()
-      })
-      .eq('project_id', project_id)
+    // Brand profile-аас website_url-ийг ЗААВАЛ авах (AI-аас ирсэн биш бизнес эзний оруулсан нь зөв)
+    if (brandProfile?.website_url) {
+      researchResult.website_url = brandProfile.website_url
+    }
 
-    if (updateError) {
-      console.error('Error saving research:', updateError)
-      // Хэрэв update амжилтгүй бол insert оролдох
-      const { error: insertError } = await supabase
+    // 6. Research data хадгалах
+    console.log('Saving research for project:', project_id)
+    console.log('Research result:', JSON.stringify(researchResult).substring(0, 200))
+
+    // Эхлээд байгаа эсэхийг шалгах
+    const { data: existingResearch } = await supabase
+      .from('research_data')
+      .select('id')
+      .eq('project_id', project_id)
+      .single()
+
+    let savedData
+    let saveError
+
+    if (existingResearch) {
+      // Update existing
+      const { data, error } = await supabase
+        .from('research_data')
+        .update({
+          ai_instructions: JSON.stringify(researchResult),
+          last_research_at: new Date().toISOString()
+        })
+        .eq('project_id', project_id)
+        .select()
+        .single()
+
+      savedData = data
+      saveError = error
+      console.log('Updated existing research:', savedData?.id)
+    } else {
+      // Insert new
+      const { data, error } = await supabase
         .from('research_data')
         .insert({
           project_id,
           ai_instructions: JSON.stringify(researchResult),
           last_research_at: new Date().toISOString()
         })
+        .select()
+        .single()
 
-      if (insertError) {
-        console.error('Error inserting research:', insertError)
-      }
+      savedData = data
+      saveError = error
+      console.log('Inserted new research:', savedData?.id)
     }
+
+    if (saveError) {
+      console.error('Error saving research:', saveError)
+      return NextResponse.json({
+        error: 'Failed to save research',
+        details: saveError
+      }, { status: 500 })
+    }
+
+    console.log('Research saved successfully:', savedData)
 
     return NextResponse.json({
       success: true,
