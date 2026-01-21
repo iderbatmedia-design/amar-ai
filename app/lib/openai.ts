@@ -264,21 +264,16 @@ ${alreadyGreeted ? '- ДАХИН МЭНДЧИЛЭХГҮЙ! Шууд хариул
 ${researchData.website_url ? `- Захиалга: ${researchData.website_url}` : ''}
 ${researchData.is_digital_product ? '- Дижитал бүтээгдэхүүн (хаяг асуухгүй!)' : ''}
 
-## ⛔ ХАМГИЙН ЧУХАЛ ДҮРЭМ - ЗӨРЧИЖ БОЛОХГҮЙ:
-Харилцагч "мэдээлэл", "юу вэ", "ямар" гэх мэт асуувал доорх FEATURES хэсгийг БҮРЭН ХУУЛЖ message дотор оруул!
-❌ ХОРИОТОЙ: Өөрөө товчлох, дүгнэх, өөрчлөх
-✅ ЗААВАЛ: features-ийн мөр бүрийг ЯГ ТЭРХ ХЭЛБЭРЭЭР copy paste хийх
-
+## БҮТЭЭГДЭХҮҮН:
 ${products?.slice(0, 5).map(p => `
-=== ${p.name} - ${p.price?.toLocaleString()}₮ ===
+【${p.name}】 Үнэ: ${p.price?.toLocaleString()}₮
 ID: ${p.id} ${p.images?.length ? '[ЗУРАГТАЙ]' : ''}
-
-📝 DESCRIPTION (товч танилцуулгад ашигла):
-${p.description || 'Байхгүй'}
-
-🔥 FEATURES (ЭНЭ ХЭСГИЙГ БҮТНЭЭР НЬ ХУУЛЖ ИЛГЭЭ!):
-${p.features?.length ? p.features.join('\n') : 'Байхгүй'}
 `).join('\n') || 'Бүтээгдэхүүн байхгүй'}
+
+## ХАРИУЛАХ ДҮРЭМ:
+- Мэндчилгээ: Богино, найрсаг
+- Бүтээгдэхүүний талаар асуувал: DESCRIPTION-ийг ашиглан товч танилцуул
+- "дэлгэрэнгүй", "онцлог", "юу сурах", "агуулга" гэвэл: FEATURES бүрэн хуулж илгээ
 
 ## ЗУРАГ:
 ${alreadySentImages
@@ -301,10 +296,10 @@ JSON: {"message":"хариулт","send_images_for_products":["product_id"] эс
 
   try {
     const response = await openai.chat.completions.create({
-      model: 'gpt-4o',  // Ухаалаг model - заавар сайн дагана
+      model: 'gpt-4o-mini',  // Хурдан, хямд model
       messages,
-      temperature: 0.3,  // Бага = илүү тодорхой, зааврыг яг дагах
-      max_tokens: 2000,  // Урт хариултыг бүрэн илгээх
+      temperature: 0.3,
+      max_tokens: 2000,
       response_format: { type: 'json_object' }
     })
 
@@ -334,7 +329,7 @@ JSON: {"message":"хариулт","send_images_for_products":["product_id"] эс
       }
 
       // ЧУХАЛ: message талбар байгаа эсэхийг шалгах
-      const messageText = parsed.message || parsed.response || parsed.text || parsed.reply
+      let messageText = parsed.message || parsed.response || parsed.text || parsed.reply
       if (!messageText) {
         console.error('AI response missing message field:', content.substring(0, 300))
         return {
@@ -342,6 +337,17 @@ JSON: {"message":"хариулт","send_images_for_products":["product_id"] эс
           send_images_for_products: [],
           images_to_send: [],
           create_order: null
+        }
+      }
+
+      // Хэрэв харилцагч "дэлгэрэнгүй", "онцлог", "агуулга" гэж асуувал features нэмэх
+      const detailKeywords = ['дэлгэрэнгүй', 'онцлог', 'агуулга', 'юу сурах', 'юу байгаа', 'ямар зүйл']
+      const askedForDetails = detailKeywords.some(kw => customerMessage.toLowerCase().includes(kw))
+
+      if (askedForDetails && products && products.length > 0) {
+        const product = products[0] // Эхний бүтээгдэхүүн
+        if (product.features && product.features.length > 0) {
+          messageText += '\n\n📚 Агуулга:\n' + product.features.join('\n')
         }
       }
 
