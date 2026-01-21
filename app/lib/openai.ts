@@ -341,7 +341,7 @@ JSON: {"message":"хариулт","send_images_for_products":["product_id"] эс
       }
 
       // Хэрэв харилцагч "дэлгэрэнгүй", "онцлог", "агуулга" гэж асуувал features нэмэх
-      const detailKeywords = ['дэлгэрэнгүй', 'онцлог', 'агуулга', 'юу сурах', 'юу байгаа', 'ямар зүйл']
+      const detailKeywords = ['дэлгэрэнгүй', 'онцлог', 'агуулга', 'юу сурах', 'юу байгаа', 'ямар зүйл', 'мэдээлэл', 'гарын авлага', 'ном']
       const askedForDetails = detailKeywords.some(kw => customerMessage.toLowerCase().includes(kw))
 
       if (askedForDetails && products && products.length > 0) {
