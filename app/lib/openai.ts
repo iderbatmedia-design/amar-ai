@@ -297,8 +297,8 @@ JSON: {"message":"хариулт","send_images_for_products":["product_id"] эс
     const response = await openai.chat.completions.create({
       model: 'gpt-4o-mini',  // Хурдан model - Messenger хариултад тохиромжтой
       messages,
-      temperature: 0.8,
-      max_tokens: 800,  // Messenger хариултад хангалттай
+      temperature: 0.5,  // Илүү тодорхой, зааврыг дагах
+      max_tokens: 2000,  // Урт хариултыг бүрэн илгээх
       response_format: { type: 'json_object' }
     })
 
